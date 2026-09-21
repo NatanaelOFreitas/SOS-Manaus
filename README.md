@@ -79,11 +79,7 @@ O relatório completo do Design Sprint está em [Documentações/SOS_Manaus-Desi
 
 ## Equipe
 
-- Natanael de Oliveira Freitas
-- Ian Mendonça Cohen
-- Rafaela Salgado Matos
-- Gabriel Couto Matos
-
-## Contexto acadêmico
-
-Projeto desenvolvido para a disciplina **Modelagem e Projeto de Sistemas** do curso de ECP, com entrega registrada em 24 de agosto de 2026.
+- Natanael Freitas
+- Ian  Cohen
+- Rafaela  Matos
+- Gabriel Couto
