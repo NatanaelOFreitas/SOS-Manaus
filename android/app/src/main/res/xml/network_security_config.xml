@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Em desenvolvimento a API roda em HTTP na rede local (sem HTTPS).
+  Em produção, remova este arquivo e use apenas HTTPS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
