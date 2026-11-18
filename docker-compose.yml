@@ -1,3 +1,15 @@
+# SOS Manaus: uma camada por container, todas no mesmo compose.
+#
+#   [mobile]  [front]          camada de apresentação (clientes)
+#        \      /
+#         [api]                camada de aplicação / regras de negócio
+#           |
+#          [db]                camada de dados
+#
+# Redes: "rede_dados" só tem api + db, então nenhum cliente fala direto com o banco.
+
+name: sos-manaus
+
 services:
   db:
     image: postgis/postgis:16-3.4
@@ -5,12 +17,73 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: sos
-      POSTGRES_PASSWORD: sos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sos}
       POSTGRES_DB: sos_manaus
-    ports:
-      - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    networks: [rede_dados]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sos -d sos_manaus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Sem "ports": o banco não fica exposto fora do Docker.
+    # Para inspecionar com DBeaver/Prisma Studio, use o docker-compose.dev.yml.
+
+  api:
+    build: ./backend
+    container_name: sos-manaus-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://sos:${POSTGRES_PASSWORD:-sos}@db:5432/sos_manaus?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no arquivo .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [rede_dados, rede_aplicacao]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  front:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${PAINEL_API_URL:-http://localhost:3000}
+    container_name: sos-manaus-front
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [rede_aplicacao]
+
+  mobile:
+    build:
+      context: ./android
+      args:
+        # Endereço que o APP usa para achar a API (o celular não enxerga o nome "api" do Docker)
+        SOS_API_URL: ${SOS_API_URL:-http://10.0.2.2:3000/}
+    container_name: sos-manaus-mobile
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [rede_aplicacao]
+
+networks:
+  rede_dados:
+  rede_aplicacao:
 
 volumes:
   db_data:

@@ -12,3 +12,5 @@ android/app/build/
 android/local.properties
 *.iml
 .DS_Store
+frontend/node_modules/
+frontend/dist/

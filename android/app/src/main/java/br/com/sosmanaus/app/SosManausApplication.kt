@@ -2,10 +2,10 @@ package br.com.sosmanaus.app
 
 import android.app.Application
 import android.content.Context
-import br.com.sosmanaus.app.data.AuthRepository
-import br.com.sosmanaus.app.data.AuthRepositoryImpl
-import br.com.sosmanaus.app.data.local.TokenStorage
-import br.com.sosmanaus.app.data.remote.NetworkModule
+import br.com.sosmanaus.app.controle.SessaoControle
+import br.com.sosmanaus.app.fronteira.api.AutenticacaoApiGateway
+import br.com.sosmanaus.app.fronteira.api.ClienteHttp
+import br.com.sosmanaus.app.fronteira.armazenamento.ArmazenamentoSessaoDataStore
 
 class SosManausApplication : Application() {
     lateinit var container: AppContainer
@@ -17,10 +17,18 @@ class SosManausApplication : Application() {
     }
 }
 
-/** Injeção de dependências manual: cria uma única instância de cada serviço. */
+/**
+ * Raiz de composição (injeção de dependências manual).
+ *
+ * É o único lugar que conhece as três camadas ao mesmo tempo: cria as
+ * implementações da fronteira (API, DataStore) e as entrega ao controle
+ * através das portas.
+ */
 class AppContainer(context: Context) {
-    private val api = NetworkModule.criarApi(BuildConfig.API_URL)
-    private val tokenStorage = TokenStorage(context)
+    private val api = ClienteHttp.criarApi(BuildConfig.API_URL)
 
-    val authRepository: AuthRepository = AuthRepositoryImpl(api, tokenStorage)
+    val sessaoControle = SessaoControle(
+        gateway = AutenticacaoApiGateway(api),
+        armazenamento = ArmazenamentoSessaoDataStore(context.applicationContext),
+    )
 }

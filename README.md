@@ -1,85 +1,75 @@
 # SOS Manaus
 
-> Plataforma de Smart City para aproximar cidadãos de Manaus e os setores públicos responsáveis pela manutenção urbana.
+Plataforma para cidadãos de Manaus registrarem problemas urbanos com foto e localização, e para gestores públicos acompanharem e resolverem essas ocorrências.
 
-## Sobre o projeto
+**Etapa atual:** login do cidadão (RFA_02) de ponta a ponta, com a arquitetura organizada em camadas e no padrão Fronteira → Controle → Entidade.
 
-O **SOS Manaus** é uma proposta de aplicativo para registrar, encaminhar e acompanhar ocorrências urbanas. A solução busca tornar mais simples a comunicação com a prefeitura, dando visibilidade a problemas como buracos, falhas na iluminação pública, lixo acumulado, alagamentos, água e esgoto e questões de segurança.
+| Documento | Conteúdo |
+|---|---|
+| [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) | Camadas, containers, redes, padrão BCE na API e no app, diagramas de robustez e de sequência |
+| [`docs/AVALIACAO-DECISOES.md`](docs/AVALIACAO-DECISOES.md) | 11 ADRs, matrizes de decisão ponderadas, cenários de qualidade, trade-offs, riscos e atendimento aos RNFs |
 
-O cidadão registra a ocorrência com foto, categoria, descrição e localização. A plataforma gera um protocolo, encaminha a demanda ao setor responsável e permite acompanhar cada atualização até a resolução. O projeto também prevê um ambiente administrativo para triagem, priorização e gestão das solicitações.
+## Stack
 
-## Status
+| Camada | Container | Tecnologia |
+|---|---|---|
+| Mobile (cidadão) | `mobile` | Kotlin + Jetpack Compose, testes JUnit |
+| Front (prefeitura) | `front` | React + Vite (TypeScript), por enquanto só esqueleto |
+| API | `api` | Node.js + NestJS + JWT, Prisma ORM, testes Jest + Supertest |
+| Banco | `db` | PostgreSQL + PostGIS |
 
-O repositório atualmente reúne a documentação do **Design Sprint** e o protótipo navegável da proposta. Ainda não há uma implementação de frontend, backend ou banco de dados versionada aqui; portanto, as funcionalidades descritas abaixo representam o escopo planejado do MVP.
+## Rodar tudo com Docker Compose
 
-## Funcionalidades planejadas
+Pré-requisito: Docker Desktop.
 
-### Para cidadãos
-
-- Cadastro, login ou acesso inicial simplificado;
-- Registro de ocorrência com foto, categoria e descrição;
-- Captura de localização por GPS, com ajuste do ponto no mapa;
-- Geração de protocolo para cada solicitação;
-- Acompanhamento de status: `Recebido` → `Em análise` → `Em atendimento` → `Resolvido`;
-- Histórico de solicitações e notificações de atualização;
-- Confirmação de ocorrências próximas para reduzir duplicidades;
-- Avaliação da resolução pelo cidadão.
-
-### Para a prefeitura
-
-- Painel com visão geral das solicitações;
-- Lista de ocorrências com filtros por categoria e status;
-- Visualização de foto, localização, descrição e protocolo;
-- Definição do setor responsável e atualização do andamento;
-- Indicadores para apoiar a priorização do atendimento.
-
-## Fluxo principal
-
-```text
-Cidadão identifica um problema
-        ↓
-Registra foto, categoria, descrição e localização
-        ↓
-Recebe um protocolo e acompanha a solicitação
-        ↓
-Prefeitura analisa, encaminha e atualiza o status
-        ↓
-Atendimento é concluído
-        ↓
-Cidadão confirma se o problema foi resolvido
+```powershell
+copy .env.example .env      # depois edite JWT_SECRET e, se for usar celular físico, SOS_API_URL
+docker compose up -d --build
+docker compose ps           # os 4 serviços devem ficar "healthy"/"running"
 ```
 
-## Protótipo
+| Serviço | Endereço |
+|---|---|
+| API | http://localhost:3000/health |
+| Painel da prefeitura | http://localhost:5173 |
+| Download do APK | http://localhost:8081 |
 
-O protótipo de média/alta fidelidade foi criado no Magic Patterns e cobre os ambientes do cidadão e da prefeitura:
+> O **primeiro** build do container `mobile` baixa o Android SDK e as dependências do Gradle (alguns GB) e pode levar bastante tempo. Ele também roda os testes JUnit: se algum falhar, o build para.
+> Para subir só banco + API + painel: `docker compose up -d --build db api front`.
 
-- Cidadão: login/cadastro, início, mapa, registro, solicitações, detalhes e avaliação da resolução;
-- Prefeitura: dashboard, lista de ocorrências e detalhes para atualização do atendimento.
+**Instalar o app:** no emulador, arraste o APK baixado para a janela. No celular físico, defina `SOS_API_URL=http://IP_DO_PC:3000/` no `.env`, rode `docker compose up -d --build mobile` e abra `http://IP_DO_PC:8081` no navegador do celular.
 
+## Desenvolvimento sem Docker
 
-## Documentação
+**API**
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db   # banco com a porta 5432 aberta
+cd backend
+copy .env.example .env
+npm install
+npx prisma migrate deploy
+npx prisma db seed
+npm run start:dev
+npm test                    # testes de entidade, controle e fronteira (Supertest)
+```
 
-O relatório completo do Design Sprint está em [Documentações/SOS_Manaus-Design-Sprint.pdf](Documentações/SOS_Manaus-Design-Sprint.pdf). Ele registra:
+**App Android:** abra a pasta `android/` no Android Studio, ajuste `SOS_API_URL` em `android/gradle.properties` se precisar e clique em **Run ▶**. Para os testes, clique com o botão direito em `app/src/test` → **Run Tests**.
 
-- Contexto do problema urbano e personas;
-- Ideação, alternativas avaliadas e matriz de decisão;
-- Storyboard e requisitos do protótipo;
-- Validação inicial do fluxo e oportunidades de melhoria;
-- Uso crítico de IA durante o processo;
-- Considerações sobre privacidade e conformidade com a LGPD.
+## Usuários de teste (seed)
 
-## Próximos passos
+| Perfil | E-mail | Senha | App Android | Painel |
+|---|---|---|---|---|
+| Cidadão | cidadao@sosmanaus.com | sos12345 | ✅ entra | ❌ 403 |
+| Gestor | gestor@sosmanaus.com | sos12345 | ❌ 403 | ✅ entra |
 
-1. Finalizar os ajustes de interatividade do protótipo;
-2. Realizar testes de usabilidade com moradores de Manaus;
-3. Definir os requisitos técnicos e desenvolver o MVP funcional;
-4. Implementar mecanismos de prevenção a registros duplicados e falsos;
-5. Avaliar acessibilidade, segurança e proteção dos dados coletados;
-6. Buscar integração e parceria com órgãos públicos responsáveis.
+## API
 
-## Equipe
+| Método | Rota | Corpo / cabeçalho | Respostas |
+|---|---|---|---|
+| POST | `/auth/login` | `{ "email", "senha", "canal": "APP_CIDADAO" \| "PAINEL_PREFEITURA" }` | 200 token + usuário · 400 formato · 401 credenciais · 403 canal/conta inativa · 429 tentativas |
+| GET | `/auth/me` | `Authorization: Bearer <token>` | 200 usuário · 401 sessão inválida |
+| GET | `/health` | — | 200 |
 
-- Natanael Freitas
-- Ian  Cohen
-- Rafaela  Matos
-- Gabriel Couto
+```powershell
+curl -X POST http://localhost:3000/auth/login -H "Content-Type: application/json" -d "{\"email\":\"cidadao@sosmanaus.com\",\"senha\":\"sos12345\",\"canal\":\"APP_CIDADAO\"}"
+```
